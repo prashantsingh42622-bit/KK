@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Shooting Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+        }
+
+        /* Space Background */
+        .space-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0c0c1e 0%, #1a1a3e 50%, #0c0c1e 100%);
+            z-index: -1;
+        }
+
+        .stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 2s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .nebula {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(100px, -50px); }
+            50% { transform: translate(-50px, 100px); }
+            75% { transform: translate(-100px, -100px); }
+        }
+
+        /* Game Container */
+        .game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* HUD */
+        .hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .hud-item {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(100, 200, 255, 0.5);
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: #fff;
+            font-size: 18px;
+            text-shadow: 0 0 10px rgba(100, 200, 255, 0.8);
+        }
+
+        .score-display {
+            background: linear-gradient(135deg, rgba(0, 100, 200, 0.5), rgba(0, 50, 100, 0.5));
+        }
+
+        .ammo-display {
+            background: linear-gradient(135deg, rgba(200, 100, 0, 0.5), rgba(100, 50, 0, 0.5));
+        }
+
+        /* Gun Selection Menu */
+        .gun-menu {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .gun-button {
+            background: linear-gradient(135deg, rgba(50, 50, 80, 0.9), rgba(30, 30, 50, 0.9));
+            border: 2px solid rgba(100, 200, 255, 0.6);
+            border-radius: 15px;
+            padding: 15px 25px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            min-width: 120px;
+        }
+
+        .gun-button:hover {
+            background: linear-gradient(135deg, rgba(70, 70, 100, 0.9), rgba(50, 50, 70, 0.9));
+            border-color: rgba(150, 255, 200, 0.8);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(100, 200, 255, 0.3);
+        }
+
+        .gun-button.active {
+            background: linear-gradient(135deg, rgba(100, 150, 200, 0.9), rgba(50, 100, 150, 0.9));
+            border-color: #00ff88;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        .gun-button .gun-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .gun-button .gun-stats {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        /* Game Area */
+        .game-area {
+            position: absolute;
+            top: 80px;
+            left: 20px;
+            right: 20px;
+            bottom: 120px;
+            cursor: crosshair;
+        }
+
+        /* Targets */
+        .target {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #ff6b6b 0%, #c92a2a 100%);
+            border-radius: 50%;
+            border: 3px solid #fff;
+            box-shadow: 0 0 20px rgba(255, 100, 100, 0.8);
+            cursor: pointer;
+            transition: transform 0.1s;
+            animation: targetPulse 1s infinite;
+        }
+
+        .target:hover {
+            transform: scale(1.1);
+        }
+
+        @keyframes targetPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 100, 100, 0.8); }
+            50% { box-shadow: 0 0 40px rgba(255, 100, 100, 1); }
+        }
+
+        .target.hit {
+            animation: explode 0.5s ease-out forwards;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        /* Bullets */
+        .bullet {
+            position: absolute;
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(to top, #ffdd00, #ffaa00);
+            border-radius: 2px;
+            box-shadow: 0 0 10px #ffdd00, 0 0 20px #ffaa00;
+            transform-origin: bottom center;
+            pointer-events: none;
+        }
+
+        .bullet-trail {
+            position: absolute;
+            width: 3px;
+            height: 40px;
+            background: linear-gradient(to top, transparent, rgba(255, 200, 0, 0.5));
+            border-radius: 2px;
+            pointer-events: none;
+        }
+
+        /* Muzzle Flash */
+        .muzzle-flash {
+            position: fixed;
+            bottom: 180px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #fff 0%, #ffdd00 30%, transparent 70%);
+            border-radius: 50%;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .muzzle-flash.active {
+            animation: flash 0.1s ease-out;
+        }
+
+        @keyframes flash {
+            0% { opacity: 1; transform: translateX(-50%) scale(1); }
+            100% { opacity: 0; transform: translateX(-50%) scale(1.5); }
+        }
+
+        /* Crosshair */
+        .crosshair {
+            position: fixed;
+            width: 30px;
+            height: 30px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: #00ff88;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .crosshair::before {
+            width: 2px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .crosshair::after {
+            width: 100%;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Instructions */
+        .instructions {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 3px solid rgba(100, 200, 255, 0.8);
+            border-radius: 20px;
+            padding: 40px;
+            color: #fff;
+            text-align: center;
+            z-index: 200;
+            max-width: 500px;
+        }
+
+        .instructions h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #00ff88, #00aaff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .instructions p {
+            font-size: 16px;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        .instructions .start-btn {
+            background: linear-gradient(135deg, #00ff88, #00aaff);
+            border: none;
+            padding: 15px 40px;
+            font-size: 20px;
+            color: #000;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .instructions .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.5);
+        }
+
+        /* Gun at bottom */
+        .current-gun {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 80px;
+            filter: drop-shadow(0 0 20px rgba(100, 200, 255, 0.5));
+            animation: gunIdle 2s infinite ease-in-out;
+            z-index: 50;
+        }
+
+        @keyframes gunIdle {
+            0%, 100% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-5px); }
+        }
+
+        .current-gun.shooting {
+            animation: gunShoot 0.1s ease-out;
+        }
+
+        @keyframes gunShoot {
+            0% { transform: translateX(-50%) translateY(0); }
+            50% { transform: translateX(-50%) translateY(-15px) rotate(-5deg); }
+            100% { transform: translateX(-50%) translateY(0); }
+        }
+
+        /* Reload indicator */
+        .reload-bar {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .reload-bar.active {
+            opacity: 1;
+        }
+
+        .reload-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00aaff);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        /* Combo display */
+        .combo-display {
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 36px;
+            font-weight: bold;
+            color: #ffdd00;
+            text-shadow: 0 0 20px #ffdd00;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        .combo-display.active {
+            opacity: 1;
+            animation: comboPopup 0.5s ease-out;
+        }
+
+        @keyframes comboPopup {
+            0% { transform: translateX(-50%) scale(0.5); opacity: 0; }
+            50% { transform: translateX(-50%) scale(1.2); opacity: 1; }
+            100% { transform: translateX(-50%) scale(1); opacity: 1; }
+        }
+
+        /* Explosion effect */
+        .explosion {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #ffdd00 0%, #ff6600 50%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: explosionAnim 0.5s ease-out forwards;
+        }
+
+        @keyframes explosionAnim {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        /* Wave indicator */
+        .wave-display {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(255, 100, 255, 0.5);
+            border-radius: 10px;
+            padding: 10px 30px;
+            color: #ff66ff;
+            font-size: 20px;
+            text-shadow: 0 0 15px rgba(255, 100, 255, 0.8);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="space-background">
+        <div class="stars" id="stars"></div>
+        <div class="nebula" style="background: radial-gradient(circle, rgba(150, 50, 200, 0.6), transparent); top: 20%; left: 10%;"></div>
+        <div class="nebula" style="background: radial-gradient(circle, rgba(50, 150, 200, 0.6), transparent); top: 60%; right: 15%; animation-delay: -5s;"></div>
+        <div class="nebula" style="background: radial-gradient(circle, rgba(200, 100, 50, 0.6), transparent); bottom: 20%; left: 30%; animation-delay: -10s;"></div>
+    </div>
+
+    <div class="game-container">
+        <div class="hud">
+            <div class="hud-item score-display">Score: <span id="score">0</span></div>
+            <div class="hud-item ammo-display">Ammo: <span id="ammo">∞</span></div>
+        </div>
+
+        <div class="wave-display">Wave: <span id="wave">1</span></div>
+        <div class="combo-display" id="combo">COMBO x1</div>
+
+        <div class="game-area" id="gameArea">
+            <div class="crosshair" id="crosshair"></div>
+        </div>
+
+        <div class="current-gun" id="currentGun">🔫</div>
+        <div class="muzzle-flash" id="muzzleFlash"></div>
+        <div class="reload-bar" id="reloadBar">
+            <div class="reload-progress" id="reloadProgress"></div>
+        </div>
+
+        <div class="gun-menu" id="gunMenu">
+            <div class="gun-button active" data-gun="pistol">
+                <div class="gun-name">🔫 Pistol</div>
+                <div class="gun-stats">DMG: 10 | Rate: Medium</div>
+            </div>
+            <div class="gun-button" data-gun="ak47">
+                <div class="gun-name">🖊️ AK-47</div>
+                <div class="gun-stats">DMG: 25 | Rate: Fast</div>
+            </div>
+            <div class="gun-button" data-gun="p95">
+                <div class="gun-name">🔫 P-95</div>
+                <div class="gun-stats">DMG: 15 | Rate: Very Fast</div>
+            </div>
+            <div class="gun-button" data-gun="sniper">
+                <div class="gun-name">🔭 Sniper</div>
+                <div class="gun-stats">DMG: 100 | Rate: Slow</div>
+            </div>
+            <div class="gun-button" data-gun="shotgun">
+                <div class="gun-name">💥 Shotgun</div>
+                <div class="gun-stats">DMG: 80 | Rate: Very Slow</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="instructions" id="instructions">
+        <h1>🚀 Space Shooter 🚀</h1>
+        <p>🎯 Click to shoot the targets!</p>
+        <p>🔫 Select different guns from the menu below</p>
+        <p>💯 Build combos for bonus points!</p>
+        <p>🌊 Survive endless waves of targets!</p>
+        <button class="start-btn" id="startBtn">START GAME</button>
+    </div>
+
+    <script>
+        // Game State
+        const game = {
+            score: 0,
+            combo: 0,
+            wave: 1,
+            isPlaying: false,
+            currentGun: 'pistol',
+            ammo: Infinity,
+            isReloading: false,
+            canShoot: true,
+            targets: [],
+            bullets: []
+        };
+
+        // Gun configurations
+        const guns = {
+            pistol: {
+                name: '🔫',
+                damage: 10,
+                fireRate: 300,
+                ammo: Infinity,
+                spread: 0
+            },
+            ak47: {
+                name: '🖊️',
+                damage: 25,
+                fireRate: 100,
+                ammo: 30,
+                spread: 0.1
+            },
+            p95: {
+                name: '🔫',
+                damage: 15,
+                fireRate: 80,
+                ammo: 50,
+                spread: 0.15
+            },
+            sniper: {
+                name: '🔭',
+                damage: 100,
+                fireRate: 1000,
+                ammo: 5,
+                spread: 0
+            },
+            shotgun: {
+                name: '💥',
+                damage: 80,
+                fireRate: 800,
+                ammo: 10,
+                spread: 0.3
+            }
+        };
+
+        // DOM Elements
+        const gameArea = document.getElementById('gameArea');
+        const crosshair = document.getElementById('crosshair');
+        const currentGun = document.getElementById('currentGun');
+        const muzzleFlash = document.getElementById('muzzleFlash');
+        const reloadBar = document.getElementById('reloadBar');
+        const reloadProgress = document.getElementById('reloadProgress');
+        const scoreDisplay = document.getElementById('score');
+        const ammoDisplay = document.getElementById('ammo');
+        const waveDisplay = document.getElementById('wave');
+        const comboDisplay = document.getElementById('combo');
+        const instructions = document.getElementById('instructions');
+        const startBtn = document.getElementById('startBtn');
+        const gunMenu = document.getElementById('gunMenu');
+
+        // Create stars
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            for (let i = 0; i < 200; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.width = Math.random() * 3 + 1 + 'px';
+                star.style.height = star.style.width;
+                star.style.animationDelay = Math.random() * 2 + 's';
+                star.style.animationDuration = (Math.random() * 2 + 1) + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // Create target
+        function createTarget() {
+            const target = document.createElement('div');
+            target.className = 'target';
+            
+            // Random position
+            const maxX = gameArea.clientWidth - 60;
+            const maxY = gameArea.clientHeight - 60;
+            target.style.left = Math.random() * maxX + 'px';
+            target.style.top = Math.random() * maxY + 'px';
+            
+            target.addEventListener('click', (e) => {
+                if (!game.isPlaying) return;
+                hitTarget(target, e);
+            });
+            
+            gameArea.appendChild(target);
+            game.targets.push(target);
+        }
+
+        // Hit target
+        function hitTarget(target, event) {
+            const gun = guns[game.currentGun];
+            const damage = gun.damage;
+            
+            // Update combo
+            game.combo++;
+            const comboMultiplier = Math.min(game.combo, 10);
+            const points = damage * comboMultiplier;
+            game.score += points;
+            
+            // Update display
+            scoreDisplay.textContent = game.score;
+            updateComboDisplay();
+            
+            // Visual feedback
+            target.classList.add('hit');
+            
+            // Create explosion
+            createExplosion(event.clientX, event.clientY);
+            
+            // Remove target
+            setTimeout(() => {
+                target.remove();
+                const index = game.targets.indexOf(target);
+                if (index > -1) game.targets.splice(index, 1);
+            }, 500);
+            
+            // Spawn new target
+            setTimeout(createTarget, 1000);
+        }
+
+        // Create explosion
+        function createExplosion(x, y) {
+            const explosion = document.createElement('div');
+            explosion.className = 'explosion';
+            explosion.style.left = (x - 50) + 'px';
+            explosion.style.top = (y - 50) + 'px';
+            document.body.appendChild(explosion);
+            
+            setTimeout(() => explosion.remove(), 500);
+        }
+
+        // Update combo display
+        function updateComboDisplay() {
+            comboDisplay.textContent = `COMBO x${game.combo}`;
+            comboDisplay.classList.add('active');
+            
+            setTimeout(() => {
+                if (game.combo === 0) {
+                    comboDisplay.classList.remove('active');
+                }
+            }, 1000);
+        }
+
+        // Shoot
+        function shoot(event) {
+            if (!game.isPlaying || !game.canShoot || game.isReloading) return;
+            
+            const gun = guns[game.currentGun];
+            
+            // Check ammo
+            if (gun.ammo !== Infinity) {
+                if (game.ammo <= 0) {
+                    reload();
+                    return;
+                }
+                game.ammo--;
+                ammoDisplay.textContent = game.ammo;
+            }
+            
+            // Create bullet effect
+            createBulletEffect(event);
+            
+            // Muzzle flash
+            muzzleFlash.classList.add('active');
+            currentGun.classList.add('shooting');
+            
+            setTimeout(() => {
+                muzzleFlash.classList.remove('active');
+                currentGun.classList.remove('shooting');
+            }, 100);
+            
+            // Cooldown
+            game.canShoot = false;
+            setTimeout(() => {
+                game.canShoot = true;
+            }, gun.fireRate);
+        }
+
+        // Create bullet effect
+        function createBulletEffect(event) {
+            const gun = guns[game.currentGun];
+            const startX = window.innerWidth / 2;
+            const startY = window.innerHeight - 100;
+            const endX = event.clientX;
+            const endY = event.clientY;
+            
+            // Calculate angle and length
+            const angle = Math.atan2(endY - startY, endX - startX);
+            const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+            
+            // Create bullet
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet';
+            bullet.style.left = startX + 'px';
+            bullet.style.top = startY + 'px';
+            bullet.style.transform = `rotate(${angle}rad)`;
+            document.body.appendChild(bullet);
+            
+            // Animate bullet
+            bullet.animate([
+                { top: startY + 'px', opacity: 1 },
+                { top: endY + 'px', opacity: 0 }
+            ], {
+                duration: 100,
+                easing: 'linear'
+            }).onfinish = () => bullet.remove();
+            
+            // Create trail
+            const trail = document.createElement('div');
+            trail.className = 'bullet-trail';
+            trail.style.left = startX + 'px';
+            trail.style.top = (startY - 40) + 'px';
+            trail.style.transform = `rotate(${angle}rad)`;
+            document.body.appendChild(trail);
+            
+            trail.animate([
+                { top: (startY - 40) + 'px', opacity: 0.5 },
+                { top: (endY - 40) + 'px', opacity: 0 }
+            ], {
+                duration: 100,
+                easing: 'linear'
+            }).onfinish = () => trail.remove();
+        }
+
+        // Reload
+        function reload() {
+            if (game.isReloading) return;
+            
+            game.isReloading = true;
+            reloadBar.classList.add('active');
+            currentGun.style.opacity = '0.5';
+            
+            let progress = 0;
+            const reloadTime = 2000;
+            const interval = 50;
+            
+            const reloadInterval = setInterval(() => {
+                progress += interval;
+                reloadProgress.style.width = (progress / reloadTime * 100) + '%';
+                
+                if (progress >= reloadTime) {
+                    clearInterval(reloadInterval);
+                    game.ammo = guns[game.currentGun].ammo;
+                    ammoDisplay.textContent = game.ammo;
+                    game.isReloading = false;
+                    reloadBar.classList.remove('active');
+                    reloadProgress.style.width = '0%';
+                    currentGun.style.opacity = '1';
+                }
+            }, interval);
+        }
+
+        // Switch gun
+        function switchGun(gunName) {
+            game.currentGun = gunName;
+            const gun = guns[gunName];
+            
+            // Update gun display
+            currentGun.textContent = gun.name;
+            
+            // Update ammo display
+            game.ammo = gun.ammo;
+            ammoDisplay.textContent = gun.ammo === Infinity ? '∞' : gun.ammo;
+            
+            // Update button states
+            document.querySelectorAll('.gun-button').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.gun === gunName) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Reset shooting state
+            game.canShoot = true;
+        }
+
+        // Update wave
+        function updateWave() {
+            waveDisplay.textContent = game.wave;
+            
+            // Increase difficulty
+            if (game.wave % 5 === 0) {
+                // Spawn more targets
+                for (let i = 0; i < game.wave / 5; i++) {
+                    setTimeout(createTarget, i * 500);
+                }
+            }
+        }
+
+        // Start game
+        function startGame() {
+            game.isPlaying = true;
+            game.score = 0;
+            game.combo = 0;
+            game.wave = 1;
+            
+            scoreDisplay.textContent = '0';
+            waveDisplay.textContent = '1';
+            
+            // Hide instructions
+            instructions.style.display = 'none';
+            
+            // Show crosshair
+            crosshair.style.display = 'block';
+            
+            // Start with some targets
+            for (let i = 0; i < 3; i++) {
+                setTimeout(createTarget, i * 500);
+            }
+            
+            // Wave timer
+            setInterval(() => {
+                if (game.isPlaying) {
+                    game.wave++;
+                    updateWave();
+                    
+                    // Reset combo on new wave
+                    game.combo = 0;
+                    updateComboDisplay();
+                }
+            }, 30000);
+        }
+
+        // Event Listeners
+        startBtn.addEventListener('click', startGame);
+        
+        gameArea.addEventListener('click', shoot);
+        
+        document.querySelectorAll('.gun-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                switchGun(btn.dataset.gun);
+            });
+        });
+        
+        // Mouse move for crosshair
+        document.addEventListener('mousemove', (e) => {
+            crosshair.style.left = e.clientX - 15 + 'px';
+            crosshair.style.top = e.clientY - 15 + 'px';
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!game.isPlaying) return;
+            
+            switch(e.key) {
+                case '1': switchGun('pistol'); break;
+                case '2':switchGun('ak47'); break;
+                case '3': switchGun('p95'); break;
+                case '4': switchGun('sniper'); break;
+                case '5': switchGun('shotgun'); break;
+                case 'r': 
+                case 'R': 
+                    reload(); 
+                    break;
+            }
+        });
+        
+        // Initialize
+        createStars();
+        switchGun('pistol');
+    </script>
+</body>
+</html>
+
